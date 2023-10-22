@@ -6,7 +6,6 @@ class ErrorType(Enum):
     TYPE_ERROR = 1
     NAME_ERROR = 2  # if a variable or function name can't be found
     FAULT_ERROR = 3  # used if an object reference is null and used to make a call
-    # Add others here
 
 class Interpreter(InterpreterBase):
     def __init__(self, console_output = True, inp = None, trace_output = False):
@@ -82,12 +81,23 @@ class Interpreter(InterpreterBase):
             op1_val = self.get_value(op1)
         elif (self.is_binary_op(op1)):
             op1_val = self.eval_binary_op(op1)
+        elif (self.is_func_call(op1)):
+            if (op1.dict['name'] == 'print'):
+                return super().error(ErrorType.TYPE_ERROR, 'Incompatible operation in expression')
+            else:
+                op1_val = self.do_func_call(op1)
             
         if (self.is_value(op2) or self.is_var(op2)):
                 op2_val = self.get_value(op2)
                 return self.do_operation(operation, op1_val, op2_val)
         elif (self.is_binary_op(op2)):
                 op2_val = self.eval_binary_op(op2)
+                return self.do_operation(operation, op1_val, op2_val)
+        elif (self.is_func_call(op2)):
+            if (op2.dict['name'] == 'print'):
+                return super().error(ErrorType.TYPE_ERROR, 'Incompatible operation in expression')
+            else:
+                op2_val = self.do_func_call(op2)
                 return self.do_operation(operation, op1_val, op2_val)
     
     def do_operation(self, operation, op1, op2):
@@ -97,6 +107,8 @@ class Interpreter(InterpreterBase):
             return op1 + op2
         elif (operation == '-'):
             return op1 - op2
+        else:
+            return super().error(ErrorType.NAME_ERROR, 'Operation does not exist')
         
     def is_func_call(self, statement_node):
         if (statement_node.elem_type == 'fcall'):
@@ -110,7 +122,7 @@ class Interpreter(InterpreterBase):
             output = ''
             for arg in args:
                 if (self.is_value(arg)):
-                    output = output + self.get_value(arg)
+                    output = output + str(self.get_value(arg))
                 elif (self.is_var(arg)):
                     output = output + str(self.get_value(arg))
                 elif (self.is_binary_op(arg)):
@@ -125,103 +137,9 @@ class Interpreter(InterpreterBase):
                 for arg in args:
                     if (self.is_value(arg)):
                         super().output(self.get_value(arg))
-                    user_input = super().get_input()
-                    return int(user_input)
-                        
-
-def main():
-    #all programs will be provided to your interpreter as a python string,
-    # just as shown here.
-    program_source = """func main() {
-        x = 5 + 6;
-        print("The sum is: ", x, " not ", 5 + 5);
-    }
-    """
-
-    program_source2 = """func main() {
-        x = 5;
-        y = 6;
-        z = "tester";
-        x = z;
-        print(x,y,z);
-        print(x, " ", y, " ", z);
-    }
-    """
-
-    program_source3 = """func main() {
-        y = 10;
-        x  = 1 + (10 + (9 - y));
-        print(x);
-        print(y);
-    }
-    """
-
-    program_source4 = """func main() {
-        foo = 5;
-        print("The answer is: ", (10 + foo) - 6, "!");
-        inputi("Enter a value just cuz!");
-    }
-    """
-    
-    # this is how you use our parser to parse a valid Brewin program into 
-    # an AST:
-
-    i.run(program_source4)
-    #print(parse_program(program_source3))
-
-    '''
-    print(parsed_program) # elem_type: program
-    # program: functions: [func: name: main, args: [], statements: [=: name: x, expression: [+: op1: [int: val: 5], op2: [int: val: 6]], fcall: name: print, args: [string: val: The sum is: , var: name: x]]]
-    
-    print(parsed_program.dict["functions"][0]) # elem_type: func
-    # func: name: main, args: [], statements: [=: name: x, expression: [+: op1: [int: val: 5], op2: [int: val: 6]], fcall: name: print, args: [string: val: The sum is: , var: name: x]]
-    
-    print(parsed_program.dict["functions"][0].dict["name"])
-    # main
-    
-    print(parsed_program.dict["functions"][0].dict["statements"])
-    # returns list of statements
-
-    print(parsed_program.dict["functions"][0].dict["statements"][0]) # elem_type: =
-    # =: name: x, expression: [+: op1: [int: val: 5], op2: [int: val: 6]]
-
-    print(parsed_program.dict["functions"][0].dict["statements"][0].dict["name"])
-    # x
-
-    print(parsed_program.dict["functions"][0].dict["statements"][0].dict["expression"]) # elem_type: +
-    # +: op1: [int: val: 5], op2: [int: val: 6]
-
-    print(parsed_program.dict["functions"][0].dict["statements"][0].dict["expression"].dict["op1"]) # elem_type: int (this is a value node)
-    # int: val: 5
-
-    print(parsed_program.dict["functions"][0].dict["statements"][0].dict["expression"].dict["op1"].dict["val"]) # value nodes only hold 'val'
-    # 5
-
-    print(parsed_program.dict["functions"][0].dict["statements"][0].dict["expression"].dict["op2"]) # elem_type: int (this is a value node)
-    # int: val: 6
-
-    print(parsed_program.dict["functions"][0].dict["statements"][0].dict["expression"].dict["op2"].dict["val"])
-    # 6
-
-    print(parsed_program.dict["functions"][0].dict["statements"][1].elem_type) # elem_type: fcall
-    # fcall: name: print, args: [string: val: The sum is: , var: name: x]
-
-    print(parsed_program.dict["functions"][0].dict["statements"][1].dict["name"])
-    # print
-
-    print(parsed_program.dict["functions"][0].dict["statements"][1].dict["args"][0]) # elem_type: string (this is a value node)
-    # string: val: The sum is: 
-
-    print(parsed_program.dict["functions"][0].dict["statements"][1].dict["args"][0].dict["val"])  # value nodes only hold one key, 'val'
-    # The sum is:
-
-    print(parsed_program.dict["functions"][0].dict["statements"][1].dict["args"][1]) # elem_type: var
-    # var: name: x
-
-    print(parsed_program.dict["functions"][0].dict["statements"][1].dict["args"][1].dict["name"]) # var nodes only hold one key, 'name'
-    # x
-    '''
-
+                user_input = super().get_input()
+                return int(user_input)
+        else:
+            return super().error(ErrorType.NAME_ERROR, 'Function does not exist')
 
 i = Interpreter()
-main()
